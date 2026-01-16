@@ -1,6 +1,53 @@
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// ヘルパー関数: 日報の合計値を再計算して更新
+async function recalculateReportTotals(ctx: any, reportId: Id<"dailyReports">) {
+  const entries = await ctx.db
+    .query("tripEntries")
+    .withIndex("by_report", (q: any) => q.eq("reportId", reportId))
+    .collect();
+
+  let totalDistance = 0;
+  let totalMinutes = 0;
+
+  for (const entry of entries) {
+    // 距離の加算
+    if (entry.distance) {
+      totalDistance += entry.distance;
+    }
+
+    // 時間の加算
+    if (entry.startTime && entry.endTime) {
+      const start = parseTime(entry.startTime);
+      const end = parseTime(entry.endTime);
+      if (start !== null && end !== null) {
+        let diff = end - start;
+        if (diff < 0) {
+          // 日をまたぐ場合（例：23:00 -> 01:00）は24時間加算
+          diff += 24 * 60;
+        }
+        totalMinutes += diff;
+      }
+    }
+  }
+
+  const totalWorkingHours = Math.round((totalMinutes / 60) * 10) / 10; // 小数点第1位まで
+
+  await ctx.db.patch(reportId, {
+    totalDistance,
+    totalWorkingHours,
+  });
+}
+
+// 時刻文字列 (HH:MM) を分単位の数値に変換
+function parseTime(timeStr: string): number | null {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+}
 
 export const addTripEntry = mutation({
   args: {
@@ -36,7 +83,7 @@ export const addTripEntry = mutation({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver || report.driverId !== driver._id) {
         throw new Error("アクセス権限がありません");
       }
@@ -50,10 +97,15 @@ export const addTripEntry = mutation({
 
     const sequence = existingEntries.length + 1;
 
-    return await ctx.db.insert("tripEntries", {
+    const newId = await ctx.db.insert("tripEntries", {
       ...args,
       sequence,
     });
+
+    // 合計値を再計算
+    await recalculateReportTotals(ctx, args.reportId);
+
+    return newId;
   },
 });
 
@@ -96,7 +148,7 @@ export const updateTripEntry = mutation({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver || report.driverId !== driver._id) {
         throw new Error("アクセス権限がありません");
       }
@@ -104,6 +156,9 @@ export const updateTripEntry = mutation({
 
     const { entryId, ...updateData } = args;
     await ctx.db.patch(entryId, updateData);
+
+    // 合計値を再計算
+    await recalculateReportTotals(ctx, entry.reportId);
   },
 });
 
@@ -136,12 +191,15 @@ export const deleteTripEntry = mutation({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver || report.driverId !== driver._id) {
         throw new Error("アクセス権限がありません");
       }
     }
 
     await ctx.db.delete(args.entryId);
+
+    // 合計値を再計算
+    await recalculateReportTotals(ctx, entry.reportId);
   },
 });

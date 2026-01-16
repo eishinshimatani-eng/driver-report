@@ -33,11 +33,11 @@ export const listReports = query({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver) {
         throw new Error("運転手情報が見つかりません");
       }
-      
+
       results = await ctx.db
         .query("dailyReports")
         .withIndex("by_driver", (q) => q.eq("driverId", driver._id))
@@ -81,7 +81,7 @@ export const listReports = query({
       results.page.map(async (report) => {
         const driver = await ctx.db.get(report.driverId);
         const vehicle = await ctx.db.get(report.vehicleId);
-        
+
         // キーワード検索（特記事項、運転手名、車両情報）
         if (args.keyword) {
           const keyword = args.keyword.toLowerCase();
@@ -91,7 +91,7 @@ export const listReports = query({
             vehicle?.plateNumber || "",
             vehicle?.model || "",
           ].join(" ").toLowerCase();
-          
+
           if (!searchText.includes(keyword)) {
             return null;
           }
@@ -136,7 +136,7 @@ export const getReport = query({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver || report.driverId !== driver._id) {
         throw new Error("アクセス権限がありません");
       }
@@ -197,7 +197,7 @@ export const createReport = mutation({
     // 同日の日報が既に存在するかチェック
     const existingReport = await ctx.db
       .query("dailyReports")
-      .withIndex("by_date_driver", (q) => 
+      .withIndex("by_date_driver", (q) =>
         q.eq("date", args.date).eq("driverId", driver._id)
       )
       .first();
@@ -211,7 +211,7 @@ export const createReport = mutation({
       driverId: driver._id,
       totalDistance: 0,
       totalWorkingHours: 0,
-      isSubmitted: false,
+      isApproved: false,
     });
   },
 });
@@ -231,7 +231,6 @@ export const updateReport = mutation({
       v.literal("maintenance")
     )),
     specialNotes: v.optional(v.string()),
-    isSubmitted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -255,7 +254,7 @@ export const updateReport = mutation({
         .query("drivers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .first();
-      
+
       if (!driver || report.driverId !== driver._id) {
         throw new Error("アクセス権限がありません");
       }
@@ -288,7 +287,7 @@ export const getReportStats = query({
     }
 
     const reports = await ctx.db.query("dailyReports").collect();
-    
+
     // 日付範囲フィルター
     const filteredReports = reports.filter((report) => {
       if (args.dateFrom && report.date < args.dateFrom) return false;
@@ -297,7 +296,7 @@ export const getReportStats = query({
     });
 
     const totalReports = filteredReports.length;
-    const submittedReports = filteredReports.filter(r => r.isSubmitted).length;
+    const approvedReports = filteredReports.filter(r => r.isApproved).length;
     const troubleReports = filteredReports.filter(r => r.status !== "normal").length;
 
     const statusCounts = filteredReports.reduce((acc, report) => {
@@ -307,10 +306,43 @@ export const getReportStats = query({
 
     return {
       totalReports,
-      submittedReports,
-      unsubmittedReports: totalReports - submittedReports,
+      approvedReports,
+      unapprovedReports: totalReports - approvedReports,
       troubleReports,
       statusCounts,
     };
+  },
+});
+
+export const toggleApproval = mutation({
+  args: { reportId: v.id("dailyReports") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("認証が必要です");
+    }
+
+    // 管理者権限チェック
+    const userRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRole?.role !== "admin") {
+      throw new Error("管理者権限が必要です");
+    }
+
+    const report = await ctx.db.get(args.reportId);
+    if (!report) {
+      throw new Error("日報が見つかりません");
+    }
+
+    const newApprovalStatus = !report.isApproved;
+
+    await ctx.db.patch(args.reportId, {
+      isApproved: newApprovalStatus,
+      approvedAt: newApprovalStatus ? new Date().toISOString() : undefined,
+      approvedBy: newApprovalStatus ? userId : undefined,
+    });
   },
 });

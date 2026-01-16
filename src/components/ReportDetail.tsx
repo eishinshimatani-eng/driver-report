@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -8,9 +8,20 @@ interface ReportDetailProps {
 }
 
 export function ReportDetail({ reportId, onBack }: ReportDetailProps) {
-  const report = useQuery(api.reports.getReport, { 
-    reportId: reportId as Id<"dailyReports"> 
+  const report = useQuery(api.reports.getReport, {
+    reportId: reportId as Id<"dailyReports">
   });
+  const userRole = useQuery(api.users.getCurrentUserRole);
+  const toggleApproval = useMutation(api.reports.toggleApproval);
+
+  const handleApprovalToggle = async () => {
+    try {
+      await toggleApproval({ reportId: reportId as Id<"dailyReports"> });
+    } catch (error) {
+      console.error("承認状態の変更に失敗しました", error);
+      alert("承認状態の変更に失敗しました");
+    }
+  };
 
   const getStatusLabel = (status: string) => {
     const statusMap = {
@@ -73,22 +84,35 @@ export function ReportDetail({ reportId, onBack }: ReportDetailProps) {
             一覧に戻る
           </button>
           <div className="flex items-center gap-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              report.isSubmitted 
-                ? "bg-green-100 text-green-800" 
-                : "bg-yellow-100 text-yellow-800"
-            }`}>
-              {report.isSubmitted ? "提出済み" : "未提出"}
-            </span>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              report.status === "normal" ? "bg-green-100 text-green-800" :
+            {report.isApproved ? (
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                承認済み
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                未承認
+              </span>
+            )}
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${report.status === "normal" ? "bg-green-100 text-green-800" :
               report.status === "trouble" ? "bg-yellow-100 text-yellow-800" :
-              report.status === "accident" ? "bg-red-100 text-red-800" :
-              report.status === "delay" ? "bg-orange-100 text-orange-800" :
-              "bg-blue-100 text-blue-800"
-            }`}>
+                report.status === "accident" ? "bg-red-100 text-red-800" :
+                  report.status === "delay" ? "bg-orange-100 text-orange-800" :
+                    "bg-blue-100 text-blue-800"
+              }`}>
               {getStatusLabel(report.status)}
             </span>
+
+            {userRole === "admin" && (
+              <button
+                onClick={handleApprovalToggle}
+                className={`ml-4 px-4 py-2 text-sm font-medium rounded-md text-white transition-colors ${report.isApproved
+                  ? "bg-gray-500 hover:bg-gray-600 focus:ring-gray-500"
+                  : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+              >
+                {report.isApproved ? "承認を取り消す" : "承認する"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -139,7 +163,7 @@ export function ReportDetail({ reportId, onBack }: ReportDetailProps) {
       {/* 運行明細 */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">運行明細</h2>
-        
+
         {report.tripEntries.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             運行明細が登録されていません

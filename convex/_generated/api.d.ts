@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as drivers from "../drivers.js";
 import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as reports from "../reports.js";
 import type * as router from "../router.js";
 import type * as setup from "../setup.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   drivers: typeof drivers;
   http: typeof http;
+  migrations: typeof migrations;
   reports: typeof reports;
   router: typeof router;
   setup: typeof setup;

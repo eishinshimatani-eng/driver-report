@@ -45,3 +45,52 @@ export const createVehicle = mutation({
     });
   },
 });
+
+export const updateVehicle = mutation({
+  args: {
+    vehicleId: v.id("vehicles"),
+    plateNumber: v.optional(v.string()),
+    model: v.optional(v.string()),
+    capacity: v.optional(v.number()),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("認証が必要です");
+    }
+
+    const userRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRole?.role !== "admin") {
+      throw new Error("管理者権限が必要です");
+    }
+
+    const { vehicleId, ...updates } = args;
+    await ctx.db.patch(vehicleId, updates);
+  },
+});
+
+export const deleteVehicle = mutation({
+  args: { vehicleId: v.id("vehicles") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("認証が必要です");
+    }
+
+    const userRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRole?.role !== "admin") {
+      throw new Error("管理者権限が必要です");
+    }
+
+    await ctx.db.patch(args.vehicleId, { isActive: false });
+  },
+});

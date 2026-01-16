@@ -37,7 +37,10 @@ const applicationTables = {
       v.literal("maintenance")
     ),
     specialNotes: v.optional(v.string()),
-    isSubmitted: v.boolean(),
+    // 承認情報
+    isApproved: v.optional(v.boolean()),
+    approvedAt: v.optional(v.string()),
+    approvedBy: v.optional(v.id("users")),
   })
     .index("by_date", ["date"])
     .index("by_driver", ["driverId"])

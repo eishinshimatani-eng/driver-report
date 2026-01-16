@@ -56,11 +56,67 @@ export const createDriver = mutation({
     });
 
     // 運転手ロールを設定
-    await ctx.db.insert("userRoles", {
-      userId: args.userId,
-      role: "driver",
-    });
+    const existingRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!existingRole) {
+      await ctx.db.insert("userRoles", {
+        userId: args.userId,
+        role: "driver",
+      });
+    }
 
     return driverId;
+  },
+});
+
+export const updateDriver = mutation({
+  args: {
+    driverId: v.id("drivers"),
+    name: v.optional(v.string()),
+    licenseNumber: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("認証が必要です");
+    }
+
+    const userRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRole?.role !== "admin") {
+      throw new Error("管理者権限が必要です");
+    }
+
+    const { driverId, ...updates } = args;
+    await ctx.db.patch(driverId, updates);
+  },
+});
+
+export const deleteDriver = mutation({
+  args: { driverId: v.id("drivers") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("認証が必要です");
+    }
+
+    const userRole = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRole?.role !== "admin") {
+      throw new Error("管理者権限が必要です");
+    }
+
+    await ctx.db.patch(args.driverId, { isActive: false });
   },
 });

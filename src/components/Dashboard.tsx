@@ -9,7 +9,7 @@ interface DashboardProps {
 export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProps) {
   const userRole = useQuery(api.users.getCurrentUserRole);
   const currentDriver = useQuery(api.users.getCurrentDriver);
-  const stats = useQuery(api.reports.getReportStats, 
+  const stats = useQuery(api.reports.getReportStats,
     userRole === "admin" ? {} : "skip"
   );
 
@@ -48,7 +48,7 @@ export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProp
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
           {userRole === "admin" ? "管理者ダッシュボード" : "運転手ダッシュボード"}
         </h2>
-        
+
         {userRole === "driver" && currentDriver && (
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <h3 className="font-semibold text-blue-900">運転手情報</h3>
@@ -64,12 +64,12 @@ export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProp
               <p className="text-2xl font-bold text-blue-700">{stats.totalReports}</p>
             </div>
             <div className="bg-green-50 rounded-lg p-4">
-              <h3 className="font-semibold text-green-900">提出済み</h3>
-              <p className="text-2xl font-bold text-green-700">{stats.submittedReports}</p>
+              <h3 className="font-semibold text-green-900">承認済み</h3>
+              <p className="text-2xl font-bold text-green-700">{stats.approvedReports}</p>
             </div>
             <div className="bg-yellow-50 rounded-lg p-4">
-              <h3 className="font-semibold text-yellow-900">未提出</h3>
-              <p className="text-2xl font-bold text-yellow-700">{stats.unsubmittedReports}</p>
+              <h3 className="font-semibold text-yellow-900">未承認</h3>
+              <p className="text-2xl font-bold text-yellow-700">{stats.unapprovedReports}</p>
             </div>
             <div className="bg-red-50 rounded-lg p-4">
               <h3 className="font-semibold text-red-900">トラブル報告</h3>
@@ -86,10 +86,10 @@ export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProp
                 <div key={status} className="text-center">
                   <p className="text-sm text-gray-600 capitalize">
                     {status === "normal" ? "通常" :
-                     status === "trouble" ? "トラブル" :
-                     status === "accident" ? "事故" :
-                     status === "delay" ? "遅延" :
-                     status === "maintenance" ? "整備" : status}
+                      status === "trouble" ? "トラブル" :
+                        status === "accident" ? "事故" :
+                          status === "delay" ? "遅延" :
+                            status === "maintenance" ? "整備" : status}
                   </p>
                   <p className="text-lg font-bold text-gray-900">{count}</p>
                 </div>
@@ -102,7 +102,7 @@ export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProp
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">クイックアクション</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button 
+          <button
             onClick={handleCreateReport}
             className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
@@ -112,8 +112,8 @@ export function Dashboard({ onNavigateToReports, onCreateReport }: DashboardProp
               <p className="text-sm text-gray-600">今日の運行日報を作成します</p>
             </div>
           </button>
-          
-          <button 
+
+          <button
             onClick={handleSearchReports}
             className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
